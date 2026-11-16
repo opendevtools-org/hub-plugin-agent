@@ -1,17 +1,49 @@
 # Hub plugin agent
 
-Turns an existing GitHub project into one custom Hub plugin. The plugin does not ship a new server. It records which server Hub should open.
+Download this repository. It is the agent that turns a project you already
+have into a Hub plugin, in a catalog you choose.
 
-People use it to add a plugin to their own catalog without writing the catalog entry by hand.
+Anyone can use it. The plugin stays in your catalog.
 
-## What you need
+## Download
 
-- The GitHub project that already exists (`owner/name` or its URL).
-- The catalog repository that should list the plugin. That repository has a `catalog.json`.
-- The server URL on the plugin machine (`http://` or `https://`), including the port.
-- The VPN endpoint the Hub Pi can dial on UDP (`host:51820`). That host is the plugin machine. It does not need a public IP when the Pi already reaches it by name.
+```bash
+git clone https://github.com/opendevtools-org/hub-plugin-agent.git
+```
 
-## Command
+Open that folder in Cursor and tell the agent:
+
+- the source repository (`owner/name` or its GitHub URL)
+- a GitHub token that can read the source
+- the catalog repository that should contain the plugin
+
+The instructions the agent follows are in `AGENTS.md` and in
+`.cursor/skills/hub-plugin/SKILL.md`.
+
+To use the same agent inside another project, copy
+`.cursor/skills/hub-plugin` to that project's `.cursor/skills/hub-plugin`.
+
+## What the agent writes
+
+In the catalog, under `plugins/<id>/`:
+
+- `docker-compose.backend.yml` and `docker-compose.frontend.yml`
+- a Flutter Android client, when the source has no mobile language
+- the web page Hub opens, the CLI, the MCP server, and the OpenAPI file
+- SSO for Hub
+- custom mode: `server` stays empty, so Hub installs the images; if you
+  pass an `http` or `https` URL, Hub opens that address and starts no
+  container
+- Dockerfiles that build `ghcr.io/<catalog-owner>/<id>:hub` and `:hub-web`
+
+If the source already publishes an image, `:hub` starts `FROM` that image
+and keeps the application's command. The token is only used to read the
+source. It is not stored in the plugin.
+
+## Remote server and VPN
+
+When the plugin already runs on your machine and you only need the catalog
+row plus a WireGuard config for the Hub machine:
 
 ```bash
 python add_plugin.py \
@@ -22,12 +54,10 @@ python add_plugin.py \
   --push
 ```
 
-The script writes a WireGuard config for the Hub Pi and one for the plugin machine, under `vpn/`. Those files hold private keys and are not committed. `--push` commits only `catalog.json` and `.gitignore`.
-
-`server` in the catalog is the address on the tunnel. The Hub Pi uses that one address for frontend REST and backend REST. `AllowedIPs` is only the plugin peer, so the Pi keeps its normal route.
-
-On the Pi, save the Pi config as `/etc/wireguard/wg-<id>.conf` and bring it up with `wg-quick`. On the plugin machine, do the same with the server config. The plugin process must listen on all interfaces, not only on localhost.
-
-## Agent
-
-Open this repository in Cursor and say which existing GitHub project, which catalog, which server, and which VPN endpoint. The agent runs `add_plugin.py` and does not invent those values.
+The script writes `vpn/<id>-pi.conf` and `vpn/<id>-server.conf`. Those
+files hold private keys and are not committed. `server` in the catalog is
+the address on the tunnel. Frontend and backend REST both use that
+address. On the Hub machine, save the first config as
+`/etc/wireguard/wg-<id>.conf` and bring it up with `wg-quick`. On the
+plugin machine, do the same with the server config. The plugin process
+must listen on all interfaces, not only on localhost.

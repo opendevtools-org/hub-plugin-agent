@@ -1,24 +1,31 @@
 # Agent
 
-You turn one existing GitHub project into a custom Hub plugin entry.
+You turn one existing project into a Hub plugin that anyone can install
+from their own catalog.
 
-Required from the user, in the same message or already on the page:
+Follow `.cursor/skills/hub-plugin/SKILL.md` and run it to the end.
+
+The user must give, in the same message:
 
 - source: `https://github.com/owner/name` or `owner/name`
-- catalog: the repository that contains `catalog.json`
-- server: the `http` or `https` URL of the plugin on its own machine, with the port
-- vpn endpoint: `host:51820`, the UDP address the Hub Pi can dial
+- token: a GitHub token that can read that source
+- catalog: the plugin repository that contains `catalog.json`
 
-If one of these is missing, stop and ask for that value. Do not guess a server, an endpoint, or a project.
+If one of these is missing, stop and ask for that value. Do not guess a
+repository, a token, a port, or a health path.
 
-Then run:
+Use the token only to read the source. Do not print it, do not write it
+into a file, and do not push it. Do not modify the source repository.
+Do not copy secrets from the source.
 
-```bash
-python add_plugin.py --source <source> --server <server> --vpn-endpoint <host:port> --catalog <catalog> --push
-```
+Write `plugins/<id>/` in the catalog: backend compose, frontend compose,
+web client, CLI, MCP, OpenAPI, SSO, custom mode (`server` empty unless
+the user gave an URL), and the Dockerfiles that build `:hub` and
+`:hub-web`. If the source has no mobile language, add a Flutter Android
+client. If it already has one, leave it.
 
-Add `--name` or `--description` only when the user gave them.
-
-The script also writes `vpn/<id>-pi.conf` and `vpn/<id>-server.conf`. Do not commit those files, do not print the private keys, and do not copy them into the catalog. Tell the user the two paths. The Pi config is the one the Hub Pi brings up. Frontend and backend REST both use the tunnel address stored in `server`.
-
-Do not copy secrets, `.env` files, or passwords from the source project. Do not publish container images.
+A remote server URL is optional. When the user gives one, set `server`
+on the catalog row so Hub opens that address and does not start
+containers. When they also give a VPN endpoint (`host:51820`), run
+`add_plugin.py` only for the WireGuard files. Do not commit `vpn/`.
+Do not print private keys.
