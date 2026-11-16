@@ -12,15 +12,6 @@ from datetime import date
 from pathlib import Path
 from urllib.parse import urlparse
 
-from wireguard_config import (
-    keypair,
-    parse_endpoint,
-    pi_config,
-    server_config,
-    tunnel_hosts,
-    tunnel_http_url,
-)
-
 
 def github_repo(value: str) -> str:
     text = value.strip()
@@ -75,12 +66,7 @@ def main() -> None:
     parser.add_argument(
         "--server",
         required=True,
-        help="HTTP URL of the plugin on its own machine, including the port",
-    )
-    parser.add_argument(
-        "--vpn-endpoint",
-        required=True,
-        help="UDP address the Hub Pi can dial, host:51820",
+        help="http or https URL Hub opens for this plugin",
     )
     parser.add_argument("--catalog", required=True, help="Catalog repository that receives the plugin")
     parser.add_argument("--name", default="", help="Name shown in the catalog")
@@ -91,13 +77,7 @@ def main() -> None:
     source = github_repo(args.source)
     catalog_repo = github_repo(args.catalog)
     server = server_url(args.server)
-    endpoint = parse_endpoint(args.vpn_endpoint)
-    listen_port = int(endpoint.rsplit(":", 1)[1])
     slug = plugin_id(source)
-    pi_ip, plugin_ip = tunnel_hosts(slug)
-    pi_private, pi_public = keypair()
-    plugin_private, plugin_public = keypair()
-    reached = tunnel_http_url(server, plugin_ip)
     entry = {
         "id": slug,
         "name": args.name.strip() or slug,
@@ -107,8 +87,7 @@ def main() -> None:
         "repo": catalog_repo,
         "ref": "main",
         "visibility": "personal",
-        "server": reached,
-        "vpn": "wireguard",
+        "server": server,
         "clients": [{"kind": "web", "launchPath": "/"}],
     }
     cleanup_root: Path | None = None
@@ -125,40 +104,12 @@ def main() -> None:
     upsert(catalog, entry)
     catalog["updatedAt"] = date.today().isoformat()
     catalog_path.write_text(json.dumps(catalog, indent=2) + "\n", encoding="utf-8")
-    vpn_dir = checkout / "vpn"
-    vpn_dir.mkdir(exist_ok=True)
-    ignore = checkout / ".gitignore"
-    rules = ignore.read_text(encoding="utf-8") if ignore.is_file() else ""
-    if "vpn/*.conf" not in rules:
-        ignore.write_text(rules + "vpn/*.conf\n", encoding="utf-8")
-    (vpn_dir / f"{slug}-pi.conf").write_text(
-        pi_config(
-            private_key=pi_private,
-            address=pi_ip,
-            peer_public=plugin_public,
-            peer_ip=plugin_ip,
-            endpoint=endpoint,
-        ),
-        encoding="utf-8",
-    )
-    (vpn_dir / f"{slug}-server.conf").write_text(
-        server_config(
-            private_key=plugin_private,
-            address=plugin_ip,
-            peer_public=pi_public,
-            peer_ip=pi_ip,
-            port=listen_port,
-        ),
-        encoding="utf-8",
-    )
-    print(f"Wrote {slug} -> {reached}")
-    print(f"Pi config: {vpn_dir / f'{slug}-pi.conf'}")
-    print(f"Server config: {vpn_dir / f'{slug}-server.conf'}")
+    print(f"Wrote {slug} -> {server}")
     if not args.push:
         if cleanup_root is not None:
             print(checkout)
         return
-    subprocess.run(["git", "add", "catalog.json", ".gitignore"], cwd=checkout, check=True)
+    subprocess.run(["git", "add", "catalog.json"], cwd=checkout, check=True)
     commit = subprocess.run(
         ["git", "commit", "-m", f"Add custom plugin {slug} pointing at its server."],
         cwd=checkout,

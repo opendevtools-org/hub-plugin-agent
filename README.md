@@ -40,24 +40,16 @@ If the source already publishes an image, `:hub` starts `FROM` that image
 and keeps the application's command. The token is only used to read the
 source. It is not stored in the plugin.
 
-## Remote server and VPN
+## Server
 
-When the plugin already runs on your machine and you only need the catalog
-row plus a WireGuard config for the Hub machine:
+When the plugin already runs on a machine you control, pass its `http` or
+`https` URL. Hub opens that `server` and does not start a container. The
+catalog does not say where Hub itself runs.
 
 ```bash
 python add_plugin.py \
   --source https://github.com/owner/project \
-  --server http://127.0.0.1:8080 \
-  --vpn-endpoint plugin-host:51820 \
+  --server https://plugin.example \
   --catalog owner/your-plugin-catalog \
   --push
 ```
-
-The script writes `vpn/<id>-pi.conf` and `vpn/<id>-server.conf`. Those
-files hold private keys and are not committed. `server` in the catalog is
-the address on the tunnel. Frontend and backend REST both use that
-address. On the Hub machine, save the first config as
-`/etc/wireguard/wg-<id>.conf` and bring it up with `wg-quick`. On the
-plugin machine, do the same with the server config. The plugin process
-must listen on all interfaces, not only on localhost.

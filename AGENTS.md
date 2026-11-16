@@ -24,8 +24,6 @@ the user gave an URL), and the Dockerfiles that build `:hub` and
 `:hub-web`. If the source has no mobile language, add a Flutter Android
 client. If it already has one, leave it.
 
-A remote server URL is optional. When the user gives one, set `server`
-on the catalog row so Hub opens that address and does not start
-containers. When they also give a VPN endpoint (`host:51820`), run
-`add_plugin.py` only for the WireGuard files. Do not commit `vpn/`.
-Do not print private keys.
+A server URL is optional. When the user gives an `http` or `https` URL,
+set `server` on the catalog row so Hub opens that address and does not
+start containers. Do not name a place where Hub runs.
