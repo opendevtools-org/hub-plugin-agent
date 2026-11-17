@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Add one existing GitHub project to a Hub catalog as a custom plugin."""
+"""Register one GitHub project as a Hub plugin that already has a server.
+
+Writes the catalog.json row only. Hub opens that URL and starts no
+container. It does not read a manifest, so it does not attach SSO.
+The agent writes plugins/<id>/ only when no server URL is given.
+"""
 
 from __future__ import annotations
 
@@ -25,20 +30,30 @@ def github_repo(value: str) -> str:
     return f"{owner}/{name}"
 
 
+# Hub rejects an id outside this shape (letter, then 1–62 more characters).
+_PLUGIN_ID = re.compile(r"^[a-z][a-z0-9-]{1,62}$")
+
+
 def plugin_id(repo: str) -> str:
     name = repo.split("/", 1)[1].lower()
     if name.endswith("-v2"):
         name = name[:-3]
     slug = re.sub(r"[^a-z0-9-]+", "-", name).strip("-")
-    if not slug:
-        raise SystemExit("The repository name cannot become a plugin id.")
+    if slug[:1].isdigit():
+        slug = f"p-{slug}"
+    slug = slug[:63]
+    if not _PLUGIN_ID.fullmatch(slug):
+        raise SystemExit(
+            "The repository name cannot become a plugin id. "
+            "Hub accepts ^[a-z][a-z0-9-]{1,62}$."
+        )
     return slug
 
 
 def server_url(value: str) -> str:
     parsed = urlparse(value.strip())
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        raise SystemExit("Each plugin needs a server URL that starts with http:// or https://.")
+        raise SystemExit("The server URL must start with http:// or https://.")
     return value.strip().rstrip("/")
 
 
@@ -86,7 +101,6 @@ def main() -> None:
         "homepage": f"https://github.com/{source}",
         "repo": catalog_repo,
         "ref": "main",
-        "visibility": "personal",
         "server": server,
         "clients": [{"kind": "web", "launchPath": "/"}],
     }
